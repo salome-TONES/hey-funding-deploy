@@ -20,7 +20,8 @@ const W = {
   entity: 25,
   experience: 15,
   duration: 15,
-  capabilities: 20,
+  capabilities: 10,
+  funding: 10,
 };
 
 function durationBucket(d: string): "short" | "medium" | "long" {
@@ -76,6 +77,14 @@ export function scoreProgram(p: Program, u: UserProfile): number {
   } else {
     const met = required.filter(([, ok]) => ok).length;
     s += (W.capabilities * met) / required.length;
+  }
+
+  // Funding alignment: program must offer at least what the user is targeting
+  const funding = typeof p.approx_funding === "number" ? p.approx_funding : parseFloat(String(p.approx_funding)) || 0;
+  if (funding >= u.budget_target) {
+    s += W.funding;
+  } else if (funding >= u.budget_target * 0.5) {
+    s += W.funding / 2;
   }
 
   // Bonus for coordinator if needed for hard programs

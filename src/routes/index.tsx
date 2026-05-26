@@ -272,12 +272,48 @@ function Index() {
       {submitted && (
         <section ref={resultsRef} className="border-t-2 border-black bg-[#fafafa]">
           <div className="mx-auto max-w-6xl px-6 py-16">
-            <SectionTitle index="03" title={`${matches.length} programs matched`} />
-            <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {matches.map(({ program, score }) => (
-                <ProgramCard key={program.id} p={program} score={score} />
-              ))}
-            </div>
+            {(() => {
+              const relevant = matches.filter((m) => m.score > 70);
+              if (relevant.length === 0) {
+                return (
+                  <div className="brutal-card bg-white p-8 md:p-12 max-w-2xl">
+                    <SectionTitle index="03" title="No matches found" />
+                    <div className="mt-6 space-y-4 text-sm leading-relaxed">
+                      <p>
+                        We haven't found a specific program for you. We haven't identified a
+                        program that clearly matches your profile right now — but that doesn't
+                        mean there aren't any options.
+                      </p>
+                      <p>
+                        Every organization is unique, and sometimes it needs to be analyzed in
+                        detail to find the right opportunity. We can do that analysis with you
+                        free of charge and tailored to your needs.
+                      </p>
+                      <p className="font-bold">
+                        Tell us about your organization and we'll do a free, personalized
+                        analysis to find the best European option for you.
+                      </p>
+                    </div>
+                    <a
+                      href="mailto:hello@heyfunding.eu?subject=I%20want%20a%20personalized%20analysis"
+                      className="mt-8 inline-flex items-center gap-2 bg-black text-hey px-5 py-3 font-bold uppercase tracking-wider text-sm brutal-border brutal-shadow brutal-hover"
+                    >
+                      I want a personalized analysis →
+                    </a>
+                  </div>
+                );
+              }
+              return (
+                <>
+                  <SectionTitle index="03" title={`${relevant.length} programs matched`} />
+                  <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {relevant.map(({ program, score }) => (
+                      <ProgramCard key={program.id} p={program} score={score} />
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </section>
       )}
