@@ -195,9 +195,8 @@ function Index() {
               {(["none", "some", "extensive"] as const).map((v) => (
                 <label
                   key={v}
-                  className={`flex-1 brutal-border px-4 py-3 cursor-pointer font-bold uppercase text-xs tracking-wider ${
-                    profile.previous_experience === v ? "bg-hey" : "bg-white"
-                  }`}
+                  className={`flex-1 brutal-border px-4 py-3 cursor-pointer font-bold uppercase text-xs tracking-wider ${profile.previous_experience === v ? "bg-hey" : "bg-white"
+                    }`}
                 >
                   <RadioGroupItem value={v} className="sr-only" />
                   {v}
@@ -221,9 +220,8 @@ function Index() {
               ].map(([v, label]) => (
                 <label
                   key={v}
-                  className={`flex-1 brutal-border px-4 py-3 cursor-pointer font-bold uppercase text-xs tracking-wider ${
-                    profile.preferred_duration === v ? "bg-hey" : "bg-white"
-                  }`}
+                  className={`flex-1 brutal-border px-4 py-3 cursor-pointer font-bold uppercase text-xs tracking-wider ${profile.preferred_duration === v ? "bg-hey" : "bg-white"
+                    }`}
                 >
                   <RadioGroupItem value={v} className="sr-only" />
                   {label}
@@ -362,7 +360,7 @@ function ProgramCard({ p, score }: { p: import("@/lib/programs").Program; score:
       </div>
       <p className="text-sm font-medium">{p.short_description}</p>
       <dl className="grid grid-cols-2 gap-2 text-xs">
-        <Meta k="Funding" v={`€${p.approx_funding.toLocaleString()}`} />
+        <Meta k="Funding" v={`${p.approx_funding.toLocaleString()}`} />
         <Meta k="Duration" v={p.project_duration} />
         <Meta k="Deadline" v={p.call_deadline} />
         <Meta k="Difficulty" v={p.difficulty_level} />

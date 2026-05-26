@@ -1,8 +1,5 @@
-// Lightweight client-side keyword heuristic "scraper".
-// In a real backend this would fetch the URL and parse it; here we
-// derive plausible profile hints from the URL itself + a small delay.
-
 import { ENTITY_TYPES, TERRITORIES } from "./programs";
+import { fetchUrlMeta } from "./scrapeUrl";
 
 export type ScrapeResult = {
   organization_type?: string;
@@ -29,20 +26,28 @@ const TLD_COUNTRY: Record<string, string> = {
 };
 
 export async function scrapeSite(url: string): Promise<ScrapeResult> {
-  // Simulate network delay
-  await new Promise((r) => setTimeout(r, 1100));
+  const normalized = url.startsWith("http") ? url : `https://${url}`;
 
   let host = "";
   try {
-    host = new URL(url.startsWith("http") ? url : `https://${url}`).hostname.toLowerCase();
+    host = new URL(normalized).hostname.toLowerCase();
   } catch {
     return {};
+  }
+
+  // Fetch real page content via server function (bypasses CORS)
+  let pageText = host;
+  try {
+    const meta = await fetchUrlMeta({ data: url });
+    pageText = `${host} ${meta.title} ${meta.description} ${meta.keywords}`.toLowerCase();
+  } catch {
+    // Fall back to hostname-only matching if the fetch fails
   }
 
   const result: ScrapeResult = {};
 
   for (const { match, out } of KEYWORDS) {
-    if (match.test(host)) Object.assign(result, out);
+    if (match.test(pageText)) Object.assign(result, out);
   }
 
   const tld = host.split(".").pop() ?? "";
@@ -53,7 +58,6 @@ export async function scrapeSite(url: string): Promise<ScrapeResult> {
   if (!result.sector) result.sector = "Social inclusion";
   if (!result.core_activity) result.core_activity = "Community programs";
 
-  // Validate against allowed lists
   if (!ENTITY_TYPES.includes(result.organization_type)) result.organization_type = "NGO";
   if (!TERRITORIES.includes(result.country!)) result.country = "Spain";
 

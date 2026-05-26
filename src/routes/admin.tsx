@@ -446,10 +446,9 @@ function ProgramForm({
             onChange={(e) => up("difficulty_level", e.target.value)}
             className="brutal-border rounded-none h-11 px-3 w-full bg-white font-medium"
           >
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-            <option value="Medium-low">Medium-low</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
           </select>
         </Fld>
         <Fld label="Experience required">
@@ -458,9 +457,9 @@ function ProgramForm({
             onChange={(e) => up("previous_experience_required", e.target.value)}
             className="brutal-border rounded-none h-11 px-3 w-full bg-white font-medium"
           >
-            <option value="None">None</option>
-            <option value="Recommended">Recommended</option>
-            <option value="Some">Some</option>
+            <option value="none">None</option>
+            <option value="some">Some</option>
+            <option value="extensive">Extensive</option>
           </select>
         </Fld>
         <Fld label="Active">

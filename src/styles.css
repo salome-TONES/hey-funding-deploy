@@ -1,6 +1,10 @@
 @import "tailwindcss" source(none);
-@source "../src";
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+/* @tailwind base;
+@tailwind components;
+@tailwind utilities; */
 @import "tw-animate-css";
+@source "../src";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -65,13 +69,18 @@
   * {
     border-color: var(--color-border);
   }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-display);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 {
+
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
     font-weight: 800;
     letter-spacing: -0.02em;
@@ -79,21 +88,61 @@
 }
 
 @layer utilities {
-  .brutal-border { border: 2px solid #000; }
-  .brutal-shadow { box-shadow: 4px 4px 0 0 #000; }
-  .brutal-shadow-lg { box-shadow: 6px 6px 0 0 #000; }
-  .brutal-shadow-sm { box-shadow: 2px 2px 0 0 #000; }
-  .brutal-card { border: 2px solid #000; box-shadow: 4px 4px 0 0 #000; background: #fff; }
-  .brutal-hover { transition: transform .12s ease, box-shadow .12s ease; }
-  .brutal-hover:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 0 #000; }
-  .brutal-hover:active { transform: translate(2px, 2px); box-shadow: 0 0 0 0 #000; }
-  .bg-hey { background-color: var(--hey-yellow); }
-  .text-hey { color: var(--hey-yellow); }
-  .flash-yellow { animation: flashYellow 1.6s ease-out 1; }
+  .brutal-border {
+    border: 2px solid #000;
+  }
+
+  .brutal-shadow {
+    box-shadow: 4px 4px 0 0 #000;
+  }
+
+  .brutal-shadow-lg {
+    box-shadow: 6px 6px 0 0 #000;
+  }
+
+  .brutal-shadow-sm {
+    box-shadow: 2px 2px 0 0 #000;
+  }
+
+  .brutal-card {
+    border: 2px solid #000;
+    box-shadow: 4px 4px 0 0 #000;
+    background: #fff;
+  }
+
+  .brutal-hover {
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+
+  .brutal-hover:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 0 #000;
+  }
+
+  .brutal-hover:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 0 #000;
+  }
+
+  .bg-hey {
+    background-color: var(--hey-yellow);
+  }
+
+  .text-hey {
+    color: var(--hey-yellow);
+  }
+
+  .flash-yellow {
+    animation: flashYellow 1.6s ease-out 1;
+  }
+
   @keyframes flashYellow {
-    0% { background-color: var(--hey-yellow); }
-    100% { background-color: transparent; }
+    0% {
+      background-color: var(--hey-yellow);
+    }
+
+    100% {
+      background-color: transparent;
+    }
   }
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
