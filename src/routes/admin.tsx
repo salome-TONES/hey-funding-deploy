@@ -182,10 +182,222 @@ function Login() {
   );
 }
 
+type AnalyticsEvent = {
+  id: string;
+  created_at: string;
+  event_name: string;
+  metadata: Record<string, unknown> | null;
+};
+
+type Lead = {
+  id: string;
+  created_at: string;
+  organization_name: string;
+  email: string;
+  has_contacted_hey: boolean;
+};
+
+function AnalyticsDashboard() {
+  const [events, setEvents] = React.useState<AnalyticsEvent[]>([]);
+  const [leads, setLeads] = React.useState<Lead[]>([]);
+  const [range, setRange] = React.useState<7 | 30 | 0>(7);
+  const [loadingEvents, setLoadingEvents] = React.useState(true);
+  const [loadingLeads, setLoadingLeads] = React.useState(true);
+
+  React.useEffect(() => {
+    async function fetchEvents() {
+      setLoadingEvents(true);
+      let query = supabase
+        .from("analytics_events")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (range > 0) {
+        const since = new Date();
+        since.setDate(since.getDate() - range);
+        query = query.gte("created_at", since.toISOString());
+      }
+      const { data, error } = await query;
+      if (!error && data) setEvents(data as AnalyticsEvent[]);
+      setLoadingEvents(false);
+    }
+    fetchEvents();
+  }, [range]);
+
+  React.useEffect(() => {
+    async function fetchLeads() {
+      setLoadingLeads(true);
+      const { data, error } = await supabase
+        .from("user_emails")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (!error && data) setLeads(data as Lead[]);
+      setLoadingLeads(false);
+    }
+    fetchLeads();
+  }, []);
+
+  async function toggleContacted(id: string, current: boolean) {
+    const { error } = await supabase
+      .from("user_emails")
+      .update({ has_contacted_hey: !current })
+      .eq("id", id);
+    if (!error) {
+      setLeads((prev) => prev.map((l) => l.id === id ? { ...l, has_contacted_hey: !current } : l));
+    }
+  }
+
+  function count(name: string) {
+    return events.filter((e) => e.event_name === name).length;
+  }
+
+  function pct(a: number, b: number) {
+    if (b === 0) return "—";
+    return Math.round((a / b) * 100) + "%";
+  }
+
+  const pageViews = count("page_view");
+  const analysed = count("analyse_site");
+  const matched = count("match_submitted");
+  const captured = count("lead_captured");
+
+  const programCounts: Record<string, number> = {};
+  events
+    .filter((e) => e.event_name === "program_contact" && e.metadata?.program)
+    .forEach((e) => {
+      const name = e.metadata!.program as string;
+      programCounts[name] = (programCounts[name] || 0) + 1;
+    });
+  const topPrograms = Object.entries(programCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  return (
+    <main className="mx-auto max-w-7xl px-6 py-10 space-y-12">
+      {/* Time filter */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold uppercase tracking-widest mr-1">Period:</span>
+        {([7, 30, 0] as const).map((r) => (
+          <button
+            key={r}
+            onClick={() => setRange(r)}
+            className={`brutal-border px-3 py-1.5 text-xs font-bold uppercase tracking-wider brutal-hover ${range === r ? "bg-black text-hey" : "bg-white"}`}
+          >
+            {r === 0 ? "All time" : `${r}d`}
+          </button>
+        ))}
+      </div>
+
+      {/* Funnel */}
+      <section>
+        <div className="flex items-end gap-3 mb-5">
+          <span className="text-xs font-bold uppercase tracking-widest bg-black text-hey px-2 py-1">01</span>
+          <h2 className="text-2xl font-black">User funnel</h2>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: "Page views", value: pageViews, prev: null },
+            { label: "Site analysed", value: analysed, prev: pageViews },
+            { label: "Match submitted", value: matched, prev: analysed },
+            { label: "Lead captured", value: captured, prev: matched },
+          ].map(({ label, value, prev }) => (
+            <div key={label} className="brutal-card bg-white p-5">
+              <div className="text-5xl font-black">{loadingEvents ? "—" : value}</div>
+              <div className="mt-2 text-[10px] font-bold uppercase tracking-widest opacity-60">{label}</div>
+              {prev !== null && !loadingEvents && (
+                <div className="mt-3 inline-block bg-hey px-2 py-0.5 text-xs font-black">
+                  {pct(value, prev)} conv.
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Contact events */}
+      <section>
+        <div className="flex items-end gap-3 mb-5">
+          <span className="text-xs font-bold uppercase tracking-widest bg-black text-hey px-2 py-1">02</span>
+          <h2 className="text-2xl font-black">Contact clicks</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="brutal-card bg-white p-5">
+            <div className="text-5xl font-black">{loadingEvents ? "—" : count("help_whatsapp")}</div>
+            <div className="mt-2 text-[10px] font-bold uppercase tracking-widest opacity-60">WhatsApp taps</div>
+          </div>
+          <div className="brutal-card bg-white p-5">
+            <div className="text-5xl font-black">{loadingEvents ? "—" : count("help_email")}</div>
+            <div className="mt-2 text-[10px] font-bold uppercase tracking-widest opacity-60">Email clicks</div>
+          </div>
+          <div className="brutal-card bg-white p-5">
+            <div className="text-5xl font-black">{loadingEvents ? "—" : count("program_contact")}</div>
+            <div className="mt-2 text-[10px] font-bold uppercase tracking-widest opacity-60">Program contacts</div>
+          </div>
+        </div>
+        {topPrograms.length > 0 && (
+          <div className="mt-4 brutal-card bg-white p-5">
+            <div className="text-[10px] font-bold uppercase tracking-widest mb-4">Top programs clicked</div>
+            <div className="space-y-2">
+              {topPrograms.map(([name, n]) => (
+                <div key={name} className="flex items-center justify-between border-b border-black/10 pb-2 last:border-0 last:pb-0">
+                  <span className="text-sm font-bold">{name}</span>
+                  <span className="bg-hey px-2 py-0.5 text-xs font-black">{n}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Leads table */}
+      <section>
+        <div className="flex items-end gap-3 mb-5">
+          <span className="text-xs font-bold uppercase tracking-widest bg-black text-hey px-2 py-1">03</span>
+          <h2 className="text-2xl font-black">Recent leads</h2>
+        </div>
+        <div className="border-2 border-black overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b-2 border-black bg-[#fafafa]">
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest">Date</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest">Organisation</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest">Email</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest">Contacted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingLeads ? (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-xs opacity-40">Loading…</td></tr>
+              ) : leads.length === 0 ? (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-xs opacity-40">No leads yet</td></tr>
+              ) : leads.map((l) => (
+                <tr key={l.id} className="border-b border-black/10 hover:bg-[#fafafa]">
+                  <td className="px-4 py-3 text-xs opacity-50 whitespace-nowrap">
+                    {new Date(l.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-3 font-bold">{l.organization_name}</td>
+                  <td className="px-4 py-3">{l.email}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => toggleContacted(l.id, l.has_contacted_hey)}
+                      className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider brutal-border brutal-hover ${l.has_contacted_hey ? "bg-hey" : "bg-white"}`}
+                    >
+                      {l.has_contacted_hey ? "✓ Done" : "Pending"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [programs, setPrograms] = React.useState<Program[]>([]);
   const [editing, setEditing] = React.useState<Program | null>(null);
   const [open, setOpen] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<"programs" | "analytics">("programs");
 
   const fetchPrograms = React.useCallback(async () => {
     try {
@@ -264,17 +476,30 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       <Toaster />
       <header className="border-b-2 border-black bg-hey">
         <div className="mx-auto max-w-7xl px-6 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Link to="/" className="bg-black text-hey px-2 py-1 font-black">hey!</Link>
-            <h1 className="text-xl font-black">Admin · Programs</h1>
+            <h1 className="text-xl font-black">Admin</h1>
+            <div className="flex gap-1">
+              {(["programs", "analytics"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider brutal-border brutal-hover ${activeTab === tab ? "bg-black text-hey" : "bg-white"}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              onClick={startNew}
-              className="bg-black text-hey hover:bg-black brutal-border brutal-shadow brutal-hover font-bold uppercase tracking-wider"
-            >
-              <Plus className="h-4 w-4" /> New program
-            </Button>
+            {activeTab === "programs" && (
+              <Button
+                onClick={startNew}
+                className="bg-black text-hey hover:bg-black brutal-border brutal-shadow brutal-hover font-bold uppercase tracking-wider"
+              >
+                <Plus className="h-4 w-4" /> New program
+              </Button>
+            )}
             <Button
               onClick={onLogout}
               variant="outline"
@@ -286,6 +511,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         </div>
       </header>
 
+      {activeTab === "analytics" ? <AnalyticsDashboard /> : (<>
       <main className="mx-auto max-w-7xl px-6 py-10">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {programs.map((p) => (
@@ -365,6 +591,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           )}
         </DialogContent>
       </Dialog>
+      </>)}
     </div>
   );
 }

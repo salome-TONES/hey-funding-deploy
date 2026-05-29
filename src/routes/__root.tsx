@@ -75,7 +75,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "hey! funding — find funding that fits" },
       { name: "description", content: "Paste your org's URL, get matched to live funding programs by relevance." },
       { property: "og:title", content: "hey! funding" },
-      { property: "og:description", content: "Find funding that actually fits you." },
+      { property: "og:description", content: "Can your organization access European funds ?" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

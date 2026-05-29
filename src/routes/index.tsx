@@ -17,6 +17,7 @@ import { matchPrograms } from "@/lib/matching";
 import type { UserProfile } from "@/lib/matching";
 import { scrapeSite } from "@/lib/scraper";
 import { supabase } from "@/lib/supabaseClient";
+import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -47,6 +48,8 @@ function Index() {
   const [showLeadModal, setShowLeadModal] = React.useState(false);
   const resultsRef = React.useRef<HTMLDivElement>(null);
 
+  React.useEffect(() => { track("page_view"); }, []);
+
   const matches = React.useMemo(
     () => (submitted ? matchPrograms(programs, profile) : []),
     [programs, profile, submitted],
@@ -75,6 +78,7 @@ function Index() {
       }));
       flash("organization_type", "sector", "country", "core_activity");
       toast.success("Site analysed — fields auto-filled");
+      track("analyse_site");
     } catch {
       toast.error("Couldn't analyse that URL");
     } finally {
@@ -84,6 +88,7 @@ function Index() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    track("match_submitted");
     setShowLeadModal(true);
   }
 
@@ -105,7 +110,7 @@ function Index() {
             hey! funding
           </div>
           <h1 className="mt-6 text-5xl font-black leading-[0.95] md:text-7xl">
-            Find funding<br />that actually<br />fits you.
+            Can your organization<br />access European <br />funds?
           </h1>
           <p className="mt-6 max-w-xl text-lg font-medium">
             Paste your org's website. We pre-fill your profile, you tweak it,
@@ -415,6 +420,7 @@ function ProgramCard({ p, score }: { p: import("@/lib/programs").Program; score:
         <span className="text-xs font-bold uppercase tracking-wider">{p.manager}</span>
         <a
           href={`mailto:hello@heyfunding.eu?subject=${encodeURIComponent(p.program)}`}
+          onClick={() => track("program_contact", { program: p.program })}
           className="inline-flex items-center gap-1 bg-black text-hey px-3 py-2 text-xs font-bold uppercase tracking-wider brutal-hover"
         >
           <Mail className="h-3 w-3" /> Contact HEY
@@ -448,6 +454,7 @@ function LeadModal({ onConfirm }: { onConfirm: () => void }) {
         email: email.trim(),
         has_contacted_hey: false,
       });
+      track("lead_captured", { organization_name: orgName.trim() });
     } catch {
       // fail-open: don't block the user if the insert fails
     } finally {
@@ -524,9 +531,8 @@ function HelpButton() {
       )}
 
       <div
-        className={`fixed bottom-24 right-6 z-50 w-72 bg-white brutal-card transition-all duration-200 ${
-          open ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
-        }`}
+        className={`fixed bottom-24 right-6 z-50 w-72 bg-white brutal-card transition-all duration-200 ${open ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+          }`}
       >
         <div className="border-b-2 border-black px-4 py-3 flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-widest">Get in touch</span>
@@ -543,6 +549,7 @@ function HelpButton() {
             href="https://wa.me/34614434733"
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => track("help_whatsapp")}
             className="flex items-center gap-3 brutal-border bg-hey px-4 py-3 brutal-hover"
           >
             <MessageCircle className="h-5 w-5 shrink-0" />
@@ -554,6 +561,7 @@ function HelpButton() {
           </a>
           <a
             href="mailto:hey@hieuropeanyouth.com"
+            onClick={() => track("help_email")}
             className="flex items-center gap-3 brutal-border bg-white px-4 py-3 brutal-hover"
           >
             <Mail className="h-5 w-5 shrink-0" />
