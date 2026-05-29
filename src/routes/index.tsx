@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles, Loader2, ArrowRight, Globe, Mail, Settings } from "lucide-react";
+import { Sparkles, Loader2, ArrowRight, Globe, Mail, Settings, HelpCircle, MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,22 +16,24 @@ import { ENTITY_TYPES, TERRITORIES, usePrograms } from "@/lib/programs";
 import { matchPrograms } from "@/lib/matching";
 import type { UserProfile } from "@/lib/matching";
 import { scrapeSite } from "@/lib/scraper";
+import { supabase } from "@/lib/supabaseClient";
 
 export const Route = createFileRoute("/")({
   component: Index,
 });
 
 const DEFAULT_PROFILE: UserProfile = {
-  organization_type: "NGO",
+  organization_type: "",
   sector: "",
-  country: "Spain",
+  core_activity: "",
+  country: "",
   works_with_youth: false,
   can_mobilize_5_plus_youth: false,
   can_host_individuals: false,
   has_eu_partners: false,
   coordinator_available: false,
   previous_experience: "none",
-  budget_target: 25000,
+  budget_target: 0,
   preferred_duration: "medium",
 };
 
@@ -41,8 +43,8 @@ function Index() {
   const [loading, setLoading] = React.useState(false);
   const [profile, setProfile] = React.useState<UserProfile>(DEFAULT_PROFILE);
   const [flashed, setFlashed] = React.useState<Set<string>>(new Set());
-  const [coreActivity, setCoreActivity] = React.useState("");
   const [submitted, setSubmitted] = React.useState(false);
+  const [showLeadModal, setShowLeadModal] = React.useState(false);
   const resultsRef = React.useRef<HTMLDivElement>(null);
 
   const matches = React.useMemo(
@@ -68,12 +70,13 @@ function Index() {
         organization_type: res.organization_type ?? p.organization_type,
         sector: res.sector ?? p.sector,
         country: res.country ?? p.country,
+        core_activity: res.core_activity ?? p.core_activity,
+        works_with_youth: res.works_with_youth ?? p.works_with_youth,
       }));
-      if (res.core_activity) setCoreActivity(res.core_activity);
       flash("organization_type", "sector", "country", "core_activity");
-      toast.success("Site analyzed — fields auto-filled");
+      toast.success("Site analysed — fields auto-filled");
     } catch {
-      toast.error("Couldn't analyze that URL");
+      toast.error("Couldn't analyse that URL");
     } finally {
       setLoading(false);
     }
@@ -81,6 +84,11 @@ function Index() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    setShowLeadModal(true);
+  }
+
+  function onLeadConfirm() {
+    setShowLeadModal(false);
     setSubmitted(true);
     setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   }
@@ -127,7 +135,7 @@ function Index() {
                 {loading ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing…</>
                 ) : (
-                  <><Sparkles className="h-4 w-4" /> Analyze site</>
+                  <><Sparkles className="h-4 w-4" /> Analyse site</>
                 )}
               </Button>
             </div>
@@ -166,8 +174,8 @@ function Index() {
 
           <Field label="Core activity" flash={flashed.has("core_activity")}>
             <Input
-              value={coreActivity}
-              onChange={(e) => setCoreActivity(e.target.value)}
+              value={profile.core_activity}
+              onChange={(e) => setProfile({ ...profile, core_activity: e.target.value })}
               className="h-12 brutal-border bg-white shadow-none rounded-none"
               placeholder="What you actually do"
             />
@@ -285,20 +293,20 @@ function Index() {
                         mean there aren't any options.
                       </p>
                       <p>
-                        Every organization is unique, and sometimes it needs to be analyzed in
+                        Every organization is unique, and sometimes it needs to be analysed in
                         detail to find the right opportunity. We can do that analysis with you
                         free of charge and tailored to your needs.
                       </p>
                       <p className="font-bold">
-                        Tell us about your organization and we'll do a free, personalized
+                        Tell us about your organization and we'll do a free, personalised
                         analysis to find the best European option for you.
                       </p>
                     </div>
                     <a
-                      href="mailto:hello@heyfunding.eu?subject=I%20want%20a%20personalized%20analysis"
+                      href="mailto:hello@heyfunding.eu?subject=I%20want%20a%20personalised%20analysis"
                       className="mt-8 inline-flex items-center gap-2 bg-black text-hey px-5 py-3 font-bold uppercase tracking-wider text-sm brutal-border brutal-shadow brutal-hover"
                     >
-                      I want a personalized analysis →
+                      I want a personalised analysis →
                     </a>
                   </div>
                 );
@@ -318,6 +326,8 @@ function Index() {
         </section>
       )}
 
+      {showLeadModal && <LeadModal onConfirm={onLeadConfirm} />}
+      <HelpButton />
       <Footer />
     </div>
   );
@@ -420,6 +430,149 @@ function Meta({ k, v }: { k: string; v: string }) {
       <dt className="font-bold uppercase tracking-wider text-[10px] opacity-70">{k}</dt>
       <dd className="font-bold">{v}</dd>
     </div>
+  );
+}
+
+function LeadModal({ onConfirm }: { onConfirm: () => void }) {
+  const [orgName, setOrgName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!orgName.trim() || !email.trim()) return;
+    setSubmitting(true);
+    try {
+      await supabase.from("user_emails").insert({
+        organization_name: orgName.trim(),
+        email: email.trim(),
+        has_contacted_hey: false,
+      });
+    } catch {
+      // fail-open: don't block the user if the insert fails
+    } finally {
+      setSubmitting(false);
+      onConfirm();
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="brutal-card bg-white w-full max-w-md mx-6 p-8">
+        <div className="mb-6">
+          <span className="text-xs font-bold uppercase tracking-widest bg-black text-hey px-2 py-1">
+            Almost there
+          </span>
+          <h2 className="mt-4 text-3xl font-black leading-tight">
+            Who are we<br />matching?
+          </h2>
+          <p className="mt-2 text-sm font-medium text-black/60">
+            We'll send your results and keep you updated on new programs.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label className="text-xs font-bold uppercase tracking-widest">
+              Organisation name
+            </Label>
+            <Input
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              required
+              placeholder="e.g. Youth Connect Spain"
+              className="mt-2 h-12 brutal-border bg-white shadow-none rounded-none"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-bold uppercase tracking-widest">
+              Contact email
+            </Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="you@yourorg.eu"
+              className="mt-2 h-12 brutal-border bg-white shadow-none rounded-none"
+            />
+          </div>
+          <Button
+            type="submit"
+            disabled={submitting || !orgName.trim() || !email.trim()}
+            className="mt-2 w-full h-12 bg-black text-hey hover:bg-black brutal-border brutal-shadow brutal-hover font-bold uppercase tracking-wider"
+          >
+            {submitting ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+            ) : (
+              <>View results <ArrowRight className="h-4 w-4" /></>
+            )}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function HelpButton() {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <>
+      {open && (
+        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+      )}
+
+      <div
+        className={`fixed bottom-24 right-6 z-50 w-72 bg-white brutal-card transition-all duration-200 ${
+          open ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+        }`}
+      >
+        <div className="border-b-2 border-black px-4 py-3 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-widest">Get in touch</span>
+          <button
+            onClick={() => setOpen(false)}
+            className="h-6 w-6 flex items-center justify-center brutal-border brutal-hover"
+            aria-label="Close"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+        <div className="p-4 space-y-3">
+          <a
+            href="https://wa.me/34614434733"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 brutal-border bg-hey px-4 py-3 brutal-hover"
+          >
+            <MessageCircle className="h-5 w-5 shrink-0" />
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-widest">WhatsApp</div>
+              <div className="text-sm font-black">+34 614 43 47 33</div>
+              <div className="text-[10px] font-medium uppercase tracking-wider opacity-60">Quick response</div>
+            </div>
+          </a>
+          <a
+            href="mailto:hey@hieuropeanyouth.com"
+            className="flex items-center gap-3 brutal-border bg-white px-4 py-3 brutal-hover"
+          >
+            <Mail className="h-5 w-5 shrink-0" />
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-widest">E-mail</div>
+              <div className="text-sm font-black">hey@hieuropeanyouth.com</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="fixed bottom-6 right-6 z-50 h-14 w-14 bg-black text-hey brutal-border brutal-shadow brutal-hover flex items-center justify-center"
+        aria-label="Help and contact"
+      >
+        <HelpCircle className="h-6 w-6" />
+      </button>
+    </>
   );
 }
 
